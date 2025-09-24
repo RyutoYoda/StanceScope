@@ -1,0 +1,5 @@
+{
+  "name": "StanceScope",
+  "description": "An AI-powered application that analyzes YouTube video comments. It automatically identifies the main conflicting viewpoints in the discussion, categorizes comments, summarizes the sentiment, and visualizes the results in a graph.",
+  "requestFramePermissions": []
+}
