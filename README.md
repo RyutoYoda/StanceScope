@@ -53,14 +53,6 @@ npm run preview
 
 `dist/`配下に静的アセットが生成されます。
 
-## Cloudflare Pagesへのデプロイ
-
-1. GitHubで本リポジトリをCloudflare Pagesプロジェクトに接続します。
-2. Build command に `npm run build`、Build output directory に `dist` を指定し、Framework preset は **Vite** を選択します。
-3. Pagesのダッシュボードで以下のシークレットを登録します。
-   - `GEMINI_API_KEY`
-   - `YOUTUBE_API_KEY`
-4. `main`ブランチへpushするとCloudflare側で自動ビルド・デプロイが実行されます。
 
 > セキュリティ注意: 現在はAPIキーがフロントエンドに埋め込まれる構成です。必要に応じてCloudflare Pages Functionsなどを利用し、サーバ側でAPI呼び出しをプロキシしてください。
 
