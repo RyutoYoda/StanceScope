@@ -77,11 +77,3 @@ npm run preview
 └── wrangler.toml           # Cloudflare Pages設定
 ```
 
-## 今後の改善アイデア
-- Cloudflare Pages FunctionsでのAPIキー秘匿
-- コメント取得件数やカテゴリのカスタマイズ
-- 分析結果のエクスポート（CSV / PDF）
-- 複数動画の横断比較ビュー
-
-## ライセンス
-プロジェクトのライセンスは未定です。用途に応じて適切なライセンスを設定してください。
