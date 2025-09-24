@@ -1,6 +1,7 @@
 import React, { useMemo, useState } from 'react';
 import type { AnalysisResult, VideoDetails } from './types';
 import { analyzeComments, hasGeminiApiKey } from './services/geminiService';
+import { runPersonalityAnalysisAgent, type PersonalityAnalysis } from './services/personalityAgent';
 import { extractVideoId, getVideoDetails, getComments } from './services/youtubeService';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { AnalysisChart } from './components/AnalysisChart';
@@ -14,6 +15,13 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [videoDetails, setVideoDetails] = useState<VideoDetails | null>(null);
+  const [personalityAnalysis, setPersonalityAnalysis] = useState<{
+    analysis: PersonalityAnalysis;
+    interactions: string;
+    strategy: string;
+  } | null>(null);
+  const [agentWorking, setAgentWorking] = useState(false);
+  const [comments, setComments] = useState<string[]>([]);
   const geminiConfigured = hasGeminiApiKey;
 
   const viewpointStats = useMemo(() => {
@@ -81,14 +89,15 @@ const App: React.FC = () => {
       const details = await getVideoDetails(videoId);
       setVideoDetails(details);
 
-      const comments = await getComments(videoId);
-      if (comments.length === 0) {
+      const fetchedComments = await getComments(videoId);
+      if (fetchedComments.length === 0) {
         setError("コメントが見つかりませんでした。分析を中止します。");
         setIsLoading(false);
         return;
       }
       
-      const result = await analyzeComments(comments);
+      setComments(fetchedComments);
+      const result = await analyzeComments(fetchedComments);
       setAnalysisResult(result);
     } catch (err) {
       if (err instanceof Error) {
@@ -98,6 +107,21 @@ const App: React.FC = () => {
       }
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const runPersonalityAgent = async () => {
+    if (!comments.length || !videoDetails) return;
+    
+    setAgentWorking(true);
+    try {
+      const result = await runPersonalityAnalysisAgent(comments, videoDetails.title);
+      setPersonalityAnalysis(result);
+    } catch (err) {
+      console.error('Personality Agent analysis failed:', err);
+      setError('性格診断分析に失敗しました。');
+    } finally {
+      setAgentWorking(false);
     }
   };
 
@@ -249,6 +273,138 @@ const App: React.FC = () => {
                 <div className="mt-6 h-80 w-full">
                   <AnalysisChart data={analysisResult.sentiment} />
                 </div>
+              </section>
+
+              {/* AI Agent 性格診断セクション */}
+              <section className="rounded-2xl border border-purple-800 bg-gradient-to-br from-purple-900/20 via-slate-900/70 to-slate-950 p-8 shadow-2xl">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="flex items-center gap-2 text-2xl font-bold text-white">
+                    🤖 AI エージェント: コメント性格診断
+                  </h3>
+                  <button
+                    onClick={runPersonalityAgent}
+                    disabled={agentWorking || !comments.length}
+                    className="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-semibold text-white transition-all transform hover:scale-105"
+                  >
+                    {agentWorking ? '🔄 AI分析中...' : '🚀 性格診断開始'}
+                  </button>
+                </div>
+
+                {agentWorking && (
+                  <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 mb-6">
+                    <h4 className="font-bold text-purple-300 mb-3">🧠 エージェントの思考プロセス</h4>
+                    <div className="space-y-2 text-sm">
+                      <div className="flex items-center text-purple-200">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full mr-3 animate-pulse"></div>
+                        コメント者の性格タイプを分析中...
+                      </div>
+                      <div className="flex items-center text-purple-200">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full mr-3 animate-pulse"></div>
+                        性格タイプ間の相互作用パターンを予測中...
+                      </div>
+                      <div className="flex items-center text-purple-200">
+                        <div className="w-2 h-2 bg-purple-400 rounded-full mr-3 animate-pulse"></div>
+                        最適なモデレーション戦略を生成中...
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {personalityAnalysis && (
+                  <div className="space-y-8">
+                    {/* 性格タイプ分布 */}
+                    <div>
+                      <h4 className="text-xl font-bold text-purple-300 mb-4">📊 性格タイプ分布</h4>
+                      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                        {personalityAnalysis.analysis.personalityDistribution.map((personality, index) => (
+                          <div key={index} className="bg-slate-800/60 border border-purple-500/30 rounded-lg p-4">
+                            <div className="flex justify-between items-center mb-2">
+                              <h5 className="font-semibold text-purple-200">{personality.type}</h5>
+                              <span className="text-purple-300 font-bold">{personality.percentage}%</span>
+                            </div>
+                            <p className="text-sm text-slate-300 mb-3">
+                              {personality.characteristics.join('、')}
+                            </p>
+                            <div className="bg-slate-700 rounded-full h-2 mb-2">
+                              <div
+                                className="bg-gradient-to-r from-purple-500 to-pink-500 h-2 rounded-full"
+                                style={{ width: `${personality.percentage}%` }}
+                              />
+                            </div>
+                            <div className="text-xs text-slate-400">
+                              {personality.count}件のコメント
+                            </div>
+                            {personality.examples.length > 0 && (
+                              <details className="mt-3">
+                                <summary className="text-xs text-purple-400 cursor-pointer hover:text-purple-300">
+                                  コメント例を見る
+                                </summary>
+                                <div className="mt-2 text-xs text-slate-400 bg-slate-900/50 p-2 rounded border-l-2 border-purple-500/30">
+                                  {personality.examples[0]}
+                                </div>
+                              </details>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* グループダイナミクス */}
+                    <div className="bg-slate-800/40 border border-purple-500/20 rounded-lg p-6">
+                      <h4 className="text-xl font-bold text-purple-300 mb-3">🎭 グループダイナミクス</h4>
+                      <p className="text-slate-200 leading-relaxed mb-4">
+                        {personalityAnalysis.analysis.groupDynamics}
+                      </p>
+                      <div className="flex items-center gap-2">
+                        <span className="text-sm text-slate-400">対立リスク:</span>
+                        <div className="flex-1 bg-slate-700 rounded-full h-2">
+                          <div
+                            className={`h-2 rounded-full ${
+                              personalityAnalysis.analysis.conflictPotential <= 3
+                                ? 'bg-green-500'
+                                : personalityAnalysis.analysis.conflictPotential <= 6
+                                ? 'bg-yellow-500'
+                                : 'bg-red-500'
+                            }`}
+                            style={{ width: `${personalityAnalysis.analysis.conflictPotential * 10}%` }}
+                          />
+                        </div>
+                        <span className="text-sm font-bold text-purple-300">
+                          {personalityAnalysis.analysis.conflictPotential}/10
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* 相互作用パターン */}
+                    <div className="bg-slate-800/40 border border-purple-500/20 rounded-lg p-6">
+                      <h4 className="text-xl font-bold text-purple-300 mb-3">🔄 相互作用パターン分析</h4>
+                      <div className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
+                        {personalityAnalysis.interactions}
+                      </div>
+                    </div>
+
+                    {/* モデレーション戦略 */}
+                    <div className="bg-gradient-to-r from-green-900/20 to-blue-900/20 border border-green-500/20 rounded-lg p-6">
+                      <h4 className="text-xl font-bold text-green-300 mb-3">🛡️ 推奨モデレーション戦略</h4>
+                      <div className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
+                        {personalityAnalysis.strategy}
+                      </div>
+                    </div>
+
+                    {/* 推奨事項 */}
+                    <div className="bg-slate-800/40 border border-purple-500/20 rounded-lg p-6">
+                      <h4 className="text-xl font-bold text-purple-300 mb-3">💡 建設的な議論のための推奨事項</h4>
+                      <ul className="space-y-2">
+                        {personalityAnalysis.analysis.recommendations.map((rec, index) => (
+                          <li key={index} className="flex items-start gap-2 text-slate-200 text-sm">
+                            <span className="text-purple-400 mt-1">•</span>
+                            <span>{rec}</span>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                )}
               </section>
             </div>
           )}
