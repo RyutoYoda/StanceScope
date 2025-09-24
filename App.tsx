@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import type { AnalysisResult, VideoDetails } from './types';
-import { analyzeComments } from './services/geminiService';
+import { analyzeComments, hasGeminiApiKey } from './services/geminiService';
 import { extractVideoId, getVideoDetails, getComments } from './services/youtubeService';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { AnalysisChart } from './components/AnalysisChart';
@@ -14,6 +14,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
   const [videoDetails, setVideoDetails] = useState<VideoDetails | null>(null);
+  const geminiConfigured = hasGeminiApiKey;
 
   const handleAnalyze = async () => {
     if (!videoUrl) {
@@ -91,12 +92,18 @@ const App: React.FC = () => {
 
             <button
               onClick={handleAnalyze}
-              disabled={isLoading}
+              disabled={isLoading || !geminiConfigured}
               className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-colors duration-200"
             >
               {isLoading ? <LoadingSpinner /> : '分析する'}
             </button>
           </div>
+
+          {!geminiConfigured && (
+            <div className="mt-6 bg-yellow-900 border border-yellow-700 text-yellow-100 px-4 py-3 rounded-lg" role="alert">
+              <p>Gemini APIキーが設定されていません。Cloudflare Pages のシークレットに <code>GEMINI_API_KEY</code> を追加して、再度デプロイしてください。</p>
+            </div>
+          )}
 
           {error && (
             <div className="mt-6 bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg" role="alert">

@@ -1,11 +1,14 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import type { AnalysisResult } from '../types';
 
-if (!process.env.GEMINI_API_KEY) {
-    throw new Error("GEMINI_API_KEY environment variable not set");
+const apiKey = process.env.GEMINI_API_KEY;
+
+let ai: GoogleGenAI | null = null;
+if (apiKey) {
+  ai = new GoogleGenAI({ apiKey });
 }
 
-const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
+export const hasGeminiApiKey = Boolean(apiKey);
 
 const schema = {
   type: Type.OBJECT,
@@ -46,6 +49,9 @@ const schema = {
 export const analyzeComments = async (
   comments: string[]
 ): Promise<AnalysisResult> => {
+  if (!ai) {
+    throw new Error("Gemini APIキーが設定されていません。");
+  }
   const prompt = `
     あなたは、オンラインの議論を分析する専門家です。以下のYouTubeコメント群を分析し、その内容を要約してください。
 

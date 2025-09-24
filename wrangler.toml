@@ -1,0 +1,4 @@
+name = "stancescope"
+pages_build_output_dir = "dist"
+
+# Configure sensitive variables via `wrangler pages secret put` instead of checking them into version control.
