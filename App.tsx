@@ -1,199 +1,144 @@
-import React, { useState, useCallback } from 'react';
-import { analyzeComments } from './services/geminiService';
-import { getVideoDetails, getVideoComments } from './services/youtubeService';
+import React, { useState } from 'react';
 import type { AnalysisResult, VideoDetails } from './types';
-import { YouTubeIcon } from './components/icons/YouTubeIcon';
-import { LinkIcon } from './components/icons/LinkIcon';
+import { analyzeComments } from './services/geminiService';
+import { extractVideoId, getVideoDetails, getComments } from './services/youtubeService';
 import { LoadingSpinner } from './components/LoadingSpinner';
 import { AnalysisChart } from './components/AnalysisChart';
+import { YouTubeIcon } from './components/icons/YouTubeIcon';
+import { LinkIcon } from './components/icons/LinkIcon';
 import { ChartIcon } from './components/icons/ChartIcon';
 
 const App: React.FC = () => {
-  const [videoUrl, setVideoUrl] = useState<string>('');
-  const [videoDetails, setVideoDetails] = useState<VideoDetails | null>(null);
-  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-  const [loadingMessage, setLoadingMessage] = useState<string>('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [analysisResult, setAnalysisResult] = useState<AnalysisResult | null>(null);
+  const [videoDetails, setVideoDetails] = useState<VideoDetails | null>(null);
 
-  const handleFetchVideo = useCallback(async () => {
-    if (!videoUrl.trim()) {
-      setError('YouTubeのURLを入力してください。');
+  const handleAnalyze = async () => {
+    if (!videoUrl) {
+      setError('YouTube動画のURLを入力してください。');
       return;
     }
+    
+    const videoId = extractVideoId(videoUrl);
+    if (!videoId) {
+      setError('有効なYouTube動画のURLを入力してください。');
+      return;
+    }
+
     setIsLoading(true);
-    setLoadingMessage('動画情報を取得中...');
     setError(null);
+    setAnalysisResult(null);
     setVideoDetails(null);
-    setAnalysisResult(null);
 
     try {
-      const details = await getVideoDetails(videoUrl);
+      // APIキーはサービス内部で環境変数から取得される
+      const details = await getVideoDetails(videoId);
       setVideoDetails(details);
-    } catch (e) {
-      console.error(e);
-      setError(e instanceof Error ? e.message : '動画情報の取得に失敗しました。');
-    } finally {
-      setIsLoading(false);
-    }
-  }, [videoUrl]);
 
-  const handleAnalyze = useCallback(async () => {
-    if (!videoDetails?.id) {
-      setError('動画情報が見つかりません。');
-      return;
-    }
-
-    setIsLoading(true);
-    setLoadingMessage('コメントをAIが分析中...');
-    setError(null);
-    setAnalysisResult(null);
-
-    try {
-      setLoadingMessage('コメントを取得中...');
-      const comments = await getVideoComments(videoDetails.id);
-       if (comments.length === 0) {
-        setError('この動画にはコメントがありません。');
+      const comments = await getComments(videoId);
+      if (comments.length === 0) {
+        setError("コメントが見つかりませんでした。分析を中止します。");
         setIsLoading(false);
         return;
       }
-      setLoadingMessage('AIが対立軸を分析中...');
+      
       const result = await analyzeComments(comments);
       setAnalysisResult(result);
-    } catch (e) {
-      console.error(e);
-      setError(e instanceof Error ? e.message : 'コメントの分析中にエラーが発生しました。');
+    } catch (err) {
+      if (err instanceof Error) {
+        setError(`エラーが発生しました: ${err.message}`);
+      } else {
+        setError('不明なエラーが発生しました。');
+      }
     } finally {
       setIsLoading(false);
-    }
-  }, [videoDetails]);
-
-  const handleUrlKeyDown = (event: React.KeyboardEvent<HTMLInputElement>) => {
-    if (event.key === 'Enter') {
-      handleFetchVideo();
     }
   };
 
   return (
-    <div className="min-h-screen bg-gray-900 text-gray-200 font-sans flex flex-col items-center p-4 sm:p-6 lg:p-8">
-      <div className="w-full max-w-4xl mx-auto">
+    <div className="bg-gray-900 text-gray-200 min-h-screen font-sans">
+      <div className="container mx-auto p-4 md:p-8">
         <header className="text-center mb-8">
-          <div className="flex items-center justify-center gap-4 mb-2">
-            <h1 className="text-4xl sm:text-5xl font-bold text-white tracking-tight">
-              StanceScope
-            </h1>
-          </div>
-          <p className="text-lg text-gray-400">
-            AIがYouTubeのコメントから人々のスタンスを読み解き、可視化します。
-          </p>
+          <h1 className="text-4xl md:text-5xl font-bold text-white mb-2 flex items-center justify-center gap-3">
+            <YouTubeIcon className="w-10 h-10 text-red-500" />
+            <span>StanceScope</span>
+          </h1>
+          <p className="text-gray-400">動画のコメント欄をAIが分析・要約します。</p>
         </header>
 
-        <main className="bg-gray-800 rounded-2xl shadow-2xl p-6 sm:p-8 space-y-6">
-          <div className="bg-gray-700/50 p-4 rounded-lg border border-gray-600">
-            <h2 className="text-lg font-semibold text-white mb-2">使い方</h2>
-            <ol className="list-decimal list-inside text-gray-300 text-sm space-y-1">
-              <li>分析したいYouTube動画のURLを貼り付けて、「動画情報を取得」ボタンを押します。</li>
-              <li>「コメントを分析」ボタンを押すと、AIが論点の特定から分析・グラフ化まで全自動で行います。</li>
-            </ol>
-          </div>
-
-          <div className="w-full space-y-4">
-            <label htmlFor="youtube-url" className="font-semibold text-white">YouTube動画のURL</label>
-            <div className="flex flex-col sm:flex-row gap-4">
-              <div className="relative flex-grow">
-                 <YouTubeIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
+        <main className="max-w-3xl mx-auto">
+          <div className="bg-gray-800 rounded-lg shadow-lg p-6 space-y-6">
+            <div>
+              <label htmlFor="videoUrl" className="block text-sm font-medium text-gray-300 mb-2">
+                YouTube Video URL
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <LinkIcon className="h-5 w-5 text-gray-400" />
+                </div>
                 <input
-                  id="youtube-url"
                   type="text"
+                  id="videoUrl"
                   value={videoUrl}
                   onChange={(e) => setVideoUrl(e.target.value)}
-                  onKeyDown={handleUrlKeyDown}
+                  className="bg-gray-700 border border-gray-600 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block w-full pl-10 p-2.5"
                   placeholder="https://www.youtube.com/watch?v=..."
-                  className="w-full bg-gray-900 border-2 border-gray-700 rounded-full py-3 pl-12 pr-4 text-gray-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 transition-colors duration-200"
-                  disabled={isLoading}
                 />
               </div>
-              <button
-                onClick={handleFetchVideo}
-                disabled={isLoading || !videoUrl.trim()}
-                className="flex items-center justify-center gap-2 px-6 py-3 bg-gray-600 text-white font-bold rounded-full shadow-md hover:bg-gray-700 disabled:bg-gray-500 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-300 ease-in-out"
-              >
-                <span>動画情報を取得</span>
-              </button>
             </div>
+
+            <button
+              onClick={handleAnalyze}
+              disabled={isLoading}
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-blue-800 disabled:cursor-not-allowed text-white font-bold py-3 px-4 rounded-lg flex items-center justify-center transition-colors duration-200"
+            >
+              {isLoading ? <LoadingSpinner /> : '分析する'}
+            </button>
           </div>
-          
-          {isLoading && !videoDetails && !analysisResult && (
-            <div className="flex justify-center items-center gap-4 p-4 text-lg">
-              <LoadingSpinner />
-              <span>{loadingMessage}</span>
+
+          {error && (
+            <div className="mt-6 bg-red-900 border border-red-700 text-red-200 px-4 py-3 rounded-lg" role="alert">
+              <p>{error}</p>
             </div>
           )}
 
-          {error && <div className="text-center text-red-400 bg-red-900/50 p-4 rounded-lg">{error}</div>}
+          {videoDetails && (
+             <div className="mt-8 bg-gray-800 rounded-lg shadow-lg p-6 flex flex-col md:flex-row items-center gap-6">
+                <img src={videoDetails.thumbnailUrl} alt={videoDetails.title} className="w-full md:w-48 rounded-lg" />
+                <h2 className="text-xl font-semibold text-white">{videoDetails.title}</h2>
+             </div>
+          )}
 
-          {videoDetails && !isLoading && (
-            <div className="space-y-6 pt-4 border-t border-gray-700 animate-fade-in">
-              <style>{`
-                @keyframes fade-in {
-                  from { opacity: 0; transform: translateY(10px); }
-                  to { opacity: 1; transform: translateY(0); }
-                }
-                .animate-fade-in { animation: fade-in 0.5s ease-out forwards; }
-              `}</style>
-              <h2 className="text-xl font-semibold text-center text-white">取得した動画情報</h2>
-              <div className="bg-gray-900 rounded-lg overflow-hidden flex flex-col md:flex-row items-center gap-6 p-4 border border-gray-700">
-                <img src={videoDetails.thumbnailUrl} alt="Video Thumbnail" className="w-full md:w-48 rounded-md aspect-video object-cover"/>
-                <h3 className="text-lg font-bold text-gray-200 text-center md:text-left">{videoDetails.title}</h3>
+          {analysisResult && (
+            <div className="mt-8 space-y-8">
+              <div className="bg-gray-800 rounded-lg shadow-lg p-6">
+                <h3 className="text-2xl font-bold text-white mb-4">要約</h3>
+                <p className="text-gray-300 whitespace-pre-wrap">{analysisResult.summary}</p>
+              </div>
+
+              <div className="bg-gray-800 rounded-lg shadow-lg p-6">
+                <h3 className="text-2xl font-bold text-white mb-4">主要な論点</h3>
+                <ul className="list-disc list-inside space-y-2 text-gray-300">
+                  {analysisResult.viewpoints.map((vp, index) => (
+                    <li key={index}>{vp}</li>
+                  ))}
+                </ul>
               </div>
               
-              <div className="flex justify-center">
-                <button
-                  onClick={handleAnalyze}
-                  disabled={isLoading}
-                  className="flex items-center justify-center gap-3 px-8 py-4 bg-indigo-600 text-white font-bold rounded-full shadow-lg hover:bg-indigo-700 disabled:bg-gray-600 disabled:cursor-not-allowed transform hover:scale-105 transition-all duration-300 ease-in-out w-full sm:w-auto"
-                >
-                   <ChartIcon className="h-6 w-6" />
-                   <span>コメントを分析</span>
-                </button>
+              <div className="bg-gray-800 rounded-lg shadow-lg p-6">
+                <h3 className="text-2xl font-bold text-white mb-4 flex items-center gap-2">
+                  <ChartIcon className="w-6 h-6" />
+                  センチメント分析
+                </h3>
+                <div className="h-80 w-full">
+                  <AnalysisChart data={analysisResult.sentiment} />
+                </div>
               </div>
             </div>
           )}
         </main>
-
-        <section className="mt-10">
-          {isLoading && !analysisResult && (
-             <div className="flex justify-center items-center gap-4 p-4 text-lg">
-                <LoadingSpinner />
-                <span>{loadingMessage}</span>
-            </div>
-          )}
-          
-          {analysisResult && (
-            <div className="bg-gray-800 rounded-2xl shadow-2xl p-6 sm:p-8 space-y-6 animate-fade-in">
-                <h2 className="text-2xl font-bold text-center text-white mb-4">分析結果</h2>
-
-                <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
-                    <h3 className="text-lg font-semibold text-indigo-400 mb-2">AIが特定した主な論点</h3>
-                    <div className="space-y-3">
-                        {analysisResult.viewpoints.map((vp, index) => (
-                            <p key={index} className="bg-gray-700 p-3 rounded-md">
-                                <strong>意見{String.fromCharCode(65 + index)}:</strong> {vp}
-                            </p>
-                        ))}
-                    </div>
-                </div>
-
-                <div className="bg-gray-900/50 p-4 rounded-lg border border-gray-700">
-                    <h3 className="text-lg font-semibold text-indigo-400 mb-2">AIによる分析サマリー</h3>
-                    <p className="text-gray-300 whitespace-pre-wrap">{analysisResult.summary}</p>
-                </div>
-                <div className="h-96 w-full">
-                    <AnalysisChart data={analysisResult.sentiment} />
-                </div>
-            </div>
-          )}
-        </section>
       </div>
     </div>
   );
