@@ -341,13 +341,13 @@ const App: React.FC = () => {
               )}
 
               {/* AI Agent 性格診断セクション */}
-              {((analysisType === 'personality' || analysisType === 'both') && (personalityAnalysis || agentWorking)) && (
+              {(analysisType === 'personality' || analysisType === 'both') && (personalityAnalysis || agentWorking || isLoading) && (
                 <section className="rounded-2xl border border-purple-800 bg-gradient-to-br from-purple-900/20 via-slate-900/70 to-slate-950 p-8 shadow-2xl">
                   <h3 className="text-2xl font-bold text-white mb-6">
                     AI エージェント: コメント性格診断
                   </h3>
 
-                {agentWorking && (
+                {(agentWorking || (isLoading && (analysisType === 'personality' || analysisType === 'both'))) && (
                   <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 mb-6">
                     <h4 className="font-bold text-purple-300 mb-3">エージェントの思考プロセス</h4>
                     <div className="space-y-2 text-sm">
