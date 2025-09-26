@@ -170,7 +170,7 @@ const App: React.FC = () => {
             <span>StanceScope</span>
           </h1>
             <p className="max-w-2xl text-lg text-slate-300">
-              討論/報道動画から、主要な論点と支持の分布を俯瞰できる分析レポートを生成します。
+              報道/討論動画から、主要な論点と支持の分布を俯瞰できる分析レポートを生成
             </p>
           </div>
         </header>
