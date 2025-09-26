@@ -24,6 +24,7 @@ const App: React.FC = () => {
   const [agentWorking, setAgentWorking] = useState(false);
   const [comments, setComments] = useState<string[]>([]);
   const [analysisType, setAnalysisType] = useState<'normal' | 'personality' | 'both'>('normal');
+  const [activeButton, setActiveButton] = useState<'normal' | 'personality' | 'both' | null>(null);
   const geminiConfigured = hasGeminiApiKey;
 
   const viewpointStats = useMemo(() => {
@@ -73,6 +74,7 @@ const App: React.FC = () => {
     const targetType = type || analysisType;
     if (type) {
       setAnalysisType(type);
+      setActiveButton(type);
     }
     if (!videoUrl) {
       setError('YouTube動画のURLを入力してください。');
@@ -112,15 +114,12 @@ const App: React.FC = () => {
       }
 
       if (targetType === 'personality' || targetType === 'both') {
-        setAgentWorking(true);
         try {
           const result = await runPersonalityAnalysisAgent(fetchedComments, details.title);
           setPersonalityAnalysis(result);
         } catch (err) {
           console.error('Personality Agent analysis failed:', err);
           setError('性格診断分析に失敗しました。');
-        } finally {
-          setAgentWorking(false);
         }
       }
     } catch (err) {
@@ -131,6 +130,7 @@ const App: React.FC = () => {
       }
     } finally {
       setIsLoading(false);
+      setActiveButton(null);
     }
   };
 
@@ -201,21 +201,21 @@ const App: React.FC = () => {
                   disabled={isLoading || !geminiConfigured}
                   className="px-4 py-3 rounded-xl font-medium transition transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:brightness-110 shadow-lg"
                 >
-                  {isLoading ? <LoadingSpinner /> : '通常分析'}
+                  {isLoading && activeButton === 'normal' ? <LoadingSpinner /> : '通常分析'}
                 </button>
                 <button
                   onClick={() => handleAnalyze('personality')}
                   disabled={isLoading || !geminiConfigured}
                   className="px-4 py-3 rounded-xl font-medium transition transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:brightness-110 shadow-lg"
                 >
-                  {isLoading ? <LoadingSpinner /> : '性格診断'}
+                  {isLoading && activeButton === 'personality' ? <LoadingSpinner /> : '性格診断'}
                 </button>
                 <button
                   onClick={() => handleAnalyze('both')}
                   disabled={isLoading || !geminiConfigured}
                   className="px-4 py-3 rounded-xl font-medium transition transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:brightness-110 shadow-lg"
                 >
-                  {isLoading ? <LoadingSpinner /> : '両方実行'}
+                  {isLoading && activeButton === 'both' ? <LoadingSpinner /> : '両方実行'}
                 </button>
               </div>
             </div>

@@ -31,13 +31,13 @@ export function OpinionClustering3D({ comments }: OpinionClustering3DProps) {
     return comments.slice(0, 80).map((comment, index) => {
       const groupId = Math.floor(Math.random() * groups);
       const angle = (index / 80) * Math.PI * 2;
-      const radius = 150 + Math.random() * 100;
+      const radius = 180 + Math.random() * 120;
 
       // Create cluster-based positions
       const clusterOffset = groupId * (Math.PI * 2 / groups);
-      const x = Math.cos(angle + clusterOffset) * radius + (Math.random() - 0.5) * 50;
-      const y = (Math.random() - 0.5) * 200 + Math.sin(groupId) * 50;
-      const z = Math.sin(angle + clusterOffset) * radius + (Math.random() - 0.5) * 50;
+      const x = Math.cos(angle + clusterOffset) * radius + (Math.random() - 0.5) * 60;
+      const y = (Math.random() - 0.5) * 240 + Math.sin(groupId) * 60;
+      const z = Math.sin(angle + clusterOffset) * radius + (Math.random() - 0.5) * 60;
 
       return {
         id: `point-${index}`,
@@ -53,15 +53,15 @@ export function OpinionClustering3D({ comments }: OpinionClustering3DProps) {
     });
   }, [comments]);
 
-  // Auto-rotation
+  // Auto-rotation (pause when hovering or dragging)
   useEffect(() => {
-    if (!isDragging) {
+    if (!isDragging && !hoveredPoint) {
       const interval = setInterval(() => {
         setRotation(prev => ({ ...prev, y: prev.y + 0.5 }));
       }, 50);
       return () => clearInterval(interval);
     }
-  }, [isDragging]);
+  }, [isDragging, hoveredPoint]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     setIsDragging(true);
@@ -99,8 +99,8 @@ export function OpinionClustering3D({ comments }: OpinionClustering3DProps) {
     const scale = perspective / (perspective + z2 + 300);
 
     return {
-      x: x1 * scale + 400,
-      y: y1 * scale + 300,
+      x: x1 * scale + 450,
+      y: y1 * scale + 350,
       scale,
       z: z2,
     };
@@ -136,10 +136,10 @@ export function OpinionClustering3D({ comments }: OpinionClustering3DProps) {
   }, [clusterPoints]);
 
   return (
-    <div className="relative w-full h-[600px] bg-gradient-to-br from-slate-900 via-purple-900/10 to-slate-900 rounded-2xl border border-purple-500/30 overflow-hidden">
+    <div className="relative w-full h-[700px] bg-gradient-to-br from-slate-900 via-purple-900/10 to-slate-900 rounded-2xl border border-purple-500/30 overflow-hidden">
       <svg
-        width="800"
-        height="600"
+        width="900"
+        height="700"
         className="absolute inset-0 w-full h-full cursor-move"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
@@ -164,7 +164,7 @@ export function OpinionClustering3D({ comments }: OpinionClustering3DProps) {
         </defs>
 
         {/* Background circle */}
-        <circle cx="400" cy="300" r="280" fill="url(#bgGradient)" opacity="0.3" />
+        <circle cx="450" cy="350" r="320" fill="url(#bgGradient)" opacity="0.3" />
 
         {/* Connection lines between same group points */}
         {sortedPoints.slice(0, 30).map((point1, i) => {
