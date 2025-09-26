@@ -240,7 +240,15 @@ export const runPersonalityAnalysisAgent = async (
   interactions: string;
   strategy: string;
 }> => {
+  console.log('PersonalityAgent: Starting analysis', {
+    hasAI: !!ai,
+    apiKey: !!apiKey,
+    commentsLength: comments.length,
+    videoTitle
+  });
+
   if (!ai) {
+    console.error('PersonalityAgent: AI not initialized, apiKey:', !!apiKey);
     throw new Error("Gemini APIキーが設定されていません");
   }
 
@@ -262,10 +270,19 @@ export const runPersonalityAnalysisAgent = async (
   - generate_moderation_strategy: モデレーション戦略
   `;
 
+  console.log('PersonalityAgent: Calling Gemini API...');
   const response = await ai.models.generateContent({
     model: "gemini-2.0-flash",
     contents: prompt,
     tools: { function_declarations: personalityTools },
+  });
+
+  console.log('PersonalityAgent: API response received', {
+    hasCandidates: !!response.candidates,
+    candidatesLength: response.candidates?.length,
+    hasContent: !!response.candidates?.[0]?.content,
+    hasParts: !!response.candidates?.[0]?.content?.parts,
+    partsLength: response.candidates?.[0]?.content?.parts?.length
   });
 
   // Function Callの処理
@@ -274,26 +291,35 @@ export const runPersonalityAnalysisAgent = async (
   let strategy = "";
 
   if (response.candidates?.[0]?.content?.parts) {
+    console.log('PersonalityAgent: Processing function calls...');
     for (const part of response.candidates[0].content.parts) {
       if (part.functionCall) {
-        const result = await executePersonalityTool(
-          part.functionCall.name,
-          part.functionCall.args
-        );
+        console.log('PersonalityAgent: Executing function:', part.functionCall.name);
+        try {
+          const result = await executePersonalityTool(
+            part.functionCall.name,
+            part.functionCall.args
+          );
+          console.log('PersonalityAgent: Function result:', part.functionCall.name, !!result);
 
-        switch (part.functionCall.name) {
-          case "analyze_personality_types":
-            analysis = result;
-            break;
-          case "predict_interaction_patterns":
-            interactions = result;
-            break;
-          case "generate_moderation_strategy":
-            strategy = result;
-            break;
+          switch (part.functionCall.name) {
+            case "analyze_personality_types":
+              analysis = result;
+              break;
+            case "predict_interaction_patterns":
+              interactions = result;
+              break;
+            case "generate_moderation_strategy":
+              strategy = result;
+              break;
+          }
+        } catch (err) {
+          console.error('PersonalityAgent: Function execution failed:', part.functionCall.name, err);
         }
       }
     }
+  } else {
+    console.log('PersonalityAgent: No function calls found in response');
   }
 
   // 基本分析が実行されなかった場合のフォールバック
@@ -314,6 +340,12 @@ export const runPersonalityAnalysisAgent = async (
       .map(p => p.type);
     strategy = await generateModerationStrategy(dominantTypes, analysis.conflictPotential);
   }
+
+  console.log('PersonalityAgent: Final result', {
+    hasAnalysis: !!analysis,
+    hasInteractions: !!interactions,
+    hasStrategy: !!strategy
+  });
 
   return {
     analysis: analysis!,

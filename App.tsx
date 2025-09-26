@@ -115,11 +115,17 @@ const App: React.FC = () => {
 
       if (targetType === 'personality' || targetType === 'both') {
         try {
+          console.log('Starting personality analysis...', fetchedComments.length, 'comments');
           const result = await runPersonalityAnalysisAgent(fetchedComments, details.title);
+          console.log('Personality analysis result:', result);
           setPersonalityAnalysis(result);
         } catch (err) {
           console.error('Personality Agent analysis failed:', err);
-          setError('性格診断分析に失敗しました。');
+          if (err instanceof Error) {
+            setError(`性格診断分析に失敗しました: ${err.message}`);
+          } else {
+            setError('性格診断分析に失敗しました。');
+          }
         }
       }
     } catch (err) {
