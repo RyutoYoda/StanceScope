@@ -69,7 +69,11 @@ const App: React.FC = () => {
     };
   }, [analysisResult]);
 
-  const handleAnalyze = async () => {
+  const handleAnalyze = async (type?: 'normal' | 'personality' | 'both') => {
+    const targetType = type || analysisType;
+    if (type) {
+      setAnalysisType(type);
+    }
     if (!videoUrl) {
       setError('YouTube動画のURLを入力してください。');
       return;
@@ -102,12 +106,12 @@ const App: React.FC = () => {
       setComments(fetchedComments);
 
       // 選択された分析タイプに応じて実行
-      if (analysisType === 'normal' || analysisType === 'both') {
+      if (targetType === 'normal' || targetType === 'both') {
         const result = await analyzeComments(fetchedComments);
         setAnalysisResult(result);
       }
 
-      if (analysisType === 'personality' || analysisType === 'both') {
+      if (targetType === 'personality' || targetType === 'both') {
         setAgentWorking(true);
         try {
           const result = await runPersonalityAnalysisAgent(fetchedComments, details.title);
@@ -186,52 +190,35 @@ const App: React.FC = () => {
               </div>
             </div>
 
-            {/* 分析タイプ選択 */}
-            <div className="mt-4">
-              <label className="block text-sm font-medium text-slate-300 mb-2">
-                分析タイプ
+            {/* 分析タイプ選択と実行 */}
+            <div className="mt-6">
+              <label className="block text-sm font-medium text-slate-300 mb-3">
+                分析タイプを選択して実行
               </label>
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-3 gap-3">
                 <button
-                  onClick={() => setAnalysisType('normal')}
-                  className={`px-4 py-2 rounded-lg font-medium transition ${
-                    analysisType === 'normal'
-                      ? 'bg-blue-500 text-white'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                  }`}
+                  onClick={() => handleAnalyze('normal')}
+                  disabled={isLoading || !geminiConfigured}
+                  className="px-4 py-3 rounded-xl font-medium transition transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:brightness-110 shadow-lg"
                 >
-                  通常分析
+                  {isLoading ? <LoadingSpinner /> : '通常分析'}
                 </button>
                 <button
-                  onClick={() => setAnalysisType('personality')}
-                  className={`px-4 py-2 rounded-lg font-medium transition ${
-                    analysisType === 'personality'
-                      ? 'bg-purple-500 text-white'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                  }`}
+                  onClick={() => handleAnalyze('personality')}
+                  disabled={isLoading || !geminiConfigured}
+                  className="px-4 py-3 rounded-xl font-medium transition transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:brightness-110 shadow-lg"
                 >
-                  性格診断
+                  {isLoading ? <LoadingSpinner /> : '性格診断'}
                 </button>
                 <button
-                  onClick={() => setAnalysisType('both')}
-                  className={`px-4 py-2 rounded-lg font-medium transition ${
-                    analysisType === 'both'
-                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
-                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
-                  }`}
+                  onClick={() => handleAnalyze('both')}
+                  disabled={isLoading || !geminiConfigured}
+                  className="px-4 py-3 rounded-xl font-medium transition transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:brightness-110 shadow-lg"
                 >
-                  両方
+                  {isLoading ? <LoadingSpinner /> : '両方実行'}
                 </button>
               </div>
             </div>
-
-            <button
-              onClick={handleAnalyze}
-              disabled={isLoading || !geminiConfigured}
-              className="mt-4 flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 px-4 py-3 text-base font-semibold text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {isLoading ? <LoadingSpinner /> : '分析開始'}
-            </button>
           </div>
 
           {!geminiConfigured && (

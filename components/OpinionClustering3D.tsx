@@ -13,6 +13,7 @@ interface ClusterPoint {
   label: string;
   size: number;
   groupId: number;
+  comment: string;
 }
 
 export function OpinionClustering3D({ comments }: OpinionClustering3DProps) {
@@ -47,6 +48,7 @@ export function OpinionClustering3D({ comments }: OpinionClustering3DProps) {
         label: labels[groupId],
         size: 4 + Math.random() * 8,
         groupId,
+        comment: comment.length > 100 ? comment.substring(0, 100) + '...' : comment,
       };
     });
   }, [comments]);
@@ -285,13 +287,25 @@ export function OpinionClustering3D({ comments }: OpinionClustering3DProps) {
       </div>
 
       {/* Hover info */}
-      {hoveredPoint && (
-        <div className="absolute top-4 left-4 bg-slate-900/90 backdrop-blur border border-purple-500/30 rounded-lg px-3 py-2">
-          <p className="text-xs text-purple-300">
-            {clusterPoints.find(p => p.id === hoveredPoint)?.label}
-          </p>
-        </div>
-      )}
+      {hoveredPoint && (() => {
+        const point = clusterPoints.find(p => p.id === hoveredPoint);
+        return point ? (
+          <div className="absolute top-4 left-4 bg-slate-900/95 backdrop-blur border border-purple-500/30 rounded-lg px-4 py-3 max-w-xs shadow-xl">
+            <div className="flex items-center gap-2 mb-2">
+              <div
+                className="w-3 h-3 rounded-full"
+                style={{ backgroundColor: point.color }}
+              />
+              <span className="text-sm font-semibold text-purple-300">
+                {point.label}
+              </span>
+            </div>
+            <p className="text-xs text-slate-300 leading-relaxed">
+              {point.comment}
+            </p>
+          </div>
+        ) : null;
+      })()}
     </div>
   );
 }
