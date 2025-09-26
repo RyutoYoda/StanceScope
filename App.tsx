@@ -23,8 +23,8 @@ const App: React.FC = () => {
   } | null>(null);
   const [agentWorking, setAgentWorking] = useState(false);
   const [comments, setComments] = useState<string[]>([]);
-  const [analysisType, setAnalysisType] = useState<'normal' | 'personality' | 'both'>('normal');
-  const [activeButton, setActiveButton] = useState<'normal' | 'personality' | 'both' | null>(null);
+  const [analysisType, setAnalysisType] = useState<'normal' | 'deep'>('normal');
+  const [activeButton, setActiveButton] = useState<'normal' | 'deep' | null>(null);
   const geminiConfigured = hasGeminiApiKey;
 
   const viewpointStats = useMemo(() => {
@@ -70,7 +70,7 @@ const App: React.FC = () => {
     };
   }, [analysisResult]);
 
-  const handleAnalyze = async (type?: 'normal' | 'personality' | 'both') => {
+  const handleAnalyze = async (type?: 'normal' | 'deep') => {
     const targetType = type || analysisType;
     if (type) {
       setAnalysisType(type);
@@ -108,12 +108,12 @@ const App: React.FC = () => {
       setComments(fetchedComments);
 
       // 選択された分析タイプに応じて実行
-      if (targetType === 'normal' || targetType === 'both') {
+      if (targetType === 'normal' || targetType === 'deep') {
         const result = await analyzeComments(fetchedComments);
         setAnalysisResult(result);
       }
 
-      if (targetType === 'personality' || targetType === 'both') {
+      if (targetType === 'deep') {
         try {
           console.log('Starting personality analysis...', fetchedComments.length, 'comments');
           const result = await runPersonalityAnalysisAgent(fetchedComments, details.title);
@@ -201,27 +201,20 @@ const App: React.FC = () => {
               <label className="block text-sm font-medium text-slate-300 mb-3">
                 分析タイプを選択して実行
               </label>
-              <div className="grid grid-cols-3 gap-3">
+              <div className="grid grid-cols-2 gap-4">
                 <button
                   onClick={() => handleAnalyze('normal')}
                   disabled={isLoading || !geminiConfigured}
-                  className="px-4 py-3 rounded-xl font-medium transition transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:brightness-110 shadow-lg"
+                  className="px-6 py-4 rounded-xl font-medium transition transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:brightness-110 shadow-lg"
                 >
                   {isLoading && activeButton === 'normal' ? <LoadingSpinner /> : '通常分析'}
                 </button>
                 <button
-                  onClick={() => handleAnalyze('personality')}
+                  onClick={() => handleAnalyze('deep')}
                   disabled={isLoading || !geminiConfigured}
-                  className="px-4 py-3 rounded-xl font-medium transition transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 bg-gradient-to-r from-purple-500 to-purple-600 text-white hover:brightness-110 shadow-lg"
+                  className="px-6 py-4 rounded-xl font-medium transition transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 bg-gradient-to-r from-purple-500 via-indigo-500 to-blue-500 text-white hover:brightness-110 shadow-lg"
                 >
-                  {isLoading && activeButton === 'personality' ? <LoadingSpinner /> : '性格診断'}
-                </button>
-                <button
-                  onClick={() => handleAnalyze('both')}
-                  disabled={isLoading || !geminiConfigured}
-                  className="px-4 py-3 rounded-xl font-medium transition transform hover:scale-105 disabled:cursor-not-allowed disabled:opacity-60 bg-gradient-to-r from-blue-500 to-purple-500 text-white hover:brightness-110 shadow-lg"
-                >
-                  {isLoading && activeButton === 'both' ? <LoadingSpinner /> : '両方実行'}
+                  {isLoading && activeButton === 'deep' ? <LoadingSpinner /> : '深層分析'}
                 </button>
               </div>
             </div>
@@ -259,7 +252,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {(analysisType === 'normal' || analysisType === 'both') && analysisResult && (
+          {(analysisType === 'normal' || analysisType === 'deep') && analysisResult && (
             <div className="space-y-10">
               <section className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/90 via-slate-900 to-slate-950 p-8 shadow-2xl">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.2),_transparent_55%)]" aria-hidden="true" />
@@ -329,7 +322,7 @@ const App: React.FC = () => {
               </section>
 
               {/* 3D Opinion Clustering Visualization */}
-              {(analysisType === 'normal' || analysisType === 'both') && (
+              {(analysisType === 'normal' || analysisType === 'deep') && (
                 <section className="rounded-2xl border border-cyan-800 bg-gradient-to-br from-cyan-900/20 via-slate-900/70 to-slate-950 p-8 shadow-2xl">
                   <h3 className="text-2xl font-bold text-white mb-4">意見クラスタリング3D可視化</h3>
                   <p className="text-sm text-slate-400 mb-6">
@@ -341,13 +334,13 @@ const App: React.FC = () => {
               )}
 
               {/* AI Agent 性格診断セクション */}
-              {(analysisType === 'personality' || analysisType === 'both') && (personalityAnalysis || agentWorking || isLoading) && (
+              {analysisType === 'deep' && (personalityAnalysis || agentWorking || isLoading) && (
                 <section className="rounded-2xl border border-purple-800 bg-gradient-to-br from-purple-900/20 via-slate-900/70 to-slate-950 p-8 shadow-2xl">
                   <h3 className="text-2xl font-bold text-white mb-6">
                     AI エージェント: コメント性格診断
                   </h3>
 
-                {(agentWorking || (isLoading && (analysisType === 'personality' || analysisType === 'both'))) && (
+                {(agentWorking || (isLoading && analysisType === 'deep')) && (
                   <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 mb-6">
                     <h4 className="font-bold text-purple-300 mb-3">エージェントの思考プロセス</h4>
                     <div className="space-y-2 text-sm">
