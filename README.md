@@ -55,15 +55,6 @@ npm run preview
 
 
 > セキュリティ注意: 現在はAPIキーがフロントエンドに埋め込まれる構成です。必要に応じてCloudflare Pages Functionsなどを利用し、サーバ側でAPI呼び出しをプロキシしてください。
-
-## プロジェクト構成
-
-```
-├── App.tsx                 # メインUI。分析ワークフローと結果表示
-├── components/             # チャートやアイコンなどのUIパーツ
-├── services/
-│   ├── geminiService.ts    # Gemini API呼び出しとレスポンス整形
-│   └── youtubeService.ts   # YouTube Data APIからのデータ取得
 ├── types.ts                # 分析結果の型定義
 ├── vite.config.ts          # Viteと環境変数の定義
 └── wrangler.toml           # Cloudflare Pages設定
