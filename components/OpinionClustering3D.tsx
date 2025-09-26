@@ -81,7 +81,7 @@ export function OpinionClustering3D({ comments }: OpinionClustering3DProps) {
     setIsDragging(false);
   };
 
-  // 3D to 2D projection
+  // 3D to 2D projection with responsive center
   const projectPoint = (point: ClusterPoint) => {
     const radX = (rotation.x * Math.PI) / 180;
     const radY = (rotation.y * Math.PI) / 180;
@@ -94,13 +94,13 @@ export function OpinionClustering3D({ comments }: OpinionClustering3DProps) {
     const y1 = point.y * Math.cos(radX) - z1 * Math.sin(radX);
     const z2 = point.y * Math.sin(radX) + z1 * Math.cos(radX);
 
-    // Perspective projection
+    // Perspective projection with responsive center (50% of viewBox)
     const perspective = 600;
     const scale = perspective / (perspective + z2 + 300);
 
     return {
-      x: x1 * scale + 450,
-      y: y1 * scale + 350,
+      x: x1 * scale + 400, // Center at 50% of 800px viewBox
+      y: y1 * scale + 300, // Center at 50% of 600px viewBox
       scale,
       z: z2,
     };
@@ -136,11 +136,11 @@ export function OpinionClustering3D({ comments }: OpinionClustering3DProps) {
   }, [clusterPoints]);
 
   return (
-    <div className="relative w-full h-[700px] bg-gradient-to-br from-slate-900 via-purple-900/10 to-slate-900 rounded-2xl border border-purple-500/30 overflow-hidden">
+    <div className="relative w-full h-[500px] md:h-[600px] bg-gradient-to-br from-slate-900 via-purple-900/10 to-slate-900 rounded-2xl border border-purple-500/30 overflow-hidden">
       <svg
-        width="900"
-        height="700"
+        viewBox="0 0 800 600"
         className="absolute inset-0 w-full h-full cursor-move"
+        preserveAspectRatio="xMidYMid meet"
         onMouseDown={handleMouseDown}
         onMouseMove={handleMouseMove}
         onMouseUp={handleMouseUp}
@@ -164,7 +164,7 @@ export function OpinionClustering3D({ comments }: OpinionClustering3DProps) {
         </defs>
 
         {/* Background circle */}
-        <circle cx="450" cy="350" r="320" fill="url(#bgGradient)" opacity="0.3" />
+        <circle cx="400" cy="300" r="280" fill="url(#bgGradient)" opacity="0.3" />
 
         {/* Connection lines between same group points */}
         {sortedPoints.slice(0, 30).map((point1, i) => {
