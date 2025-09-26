@@ -8,6 +8,7 @@ import { AnalysisChart } from './components/AnalysisChart';
 import { YouTubeIcon } from './components/icons/YouTubeIcon';
 import { LinkIcon } from './components/icons/LinkIcon';
 import { ChartIcon } from './components/icons/ChartIcon';
+import { OpinionClustering3D } from './components/OpinionClustering3D';
 
 const App: React.FC = () => {
   const [videoUrl, setVideoUrl] = useState('');
@@ -22,6 +23,7 @@ const App: React.FC = () => {
   } | null>(null);
   const [agentWorking, setAgentWorking] = useState(false);
   const [comments, setComments] = useState<string[]>([]);
+  const [analysisType, setAnalysisType] = useState<'normal' | 'personality' | 'both'>('normal');
   const geminiConfigured = hasGeminiApiKey;
 
   const viewpointStats = useMemo(() => {
@@ -83,6 +85,7 @@ const App: React.FC = () => {
     setError(null);
     setAnalysisResult(null);
     setVideoDetails(null);
+    setPersonalityAnalysis(null);
 
     try {
       // APIキーはサービス内部で環境変数から取得される
@@ -95,10 +98,27 @@ const App: React.FC = () => {
         setIsLoading(false);
         return;
       }
-      
+
       setComments(fetchedComments);
-      const result = await analyzeComments(fetchedComments);
-      setAnalysisResult(result);
+
+      // 選択された分析タイプに応じて実行
+      if (analysisType === 'normal' || analysisType === 'both') {
+        const result = await analyzeComments(fetchedComments);
+        setAnalysisResult(result);
+      }
+
+      if (analysisType === 'personality' || analysisType === 'both') {
+        setAgentWorking(true);
+        try {
+          const result = await runPersonalityAnalysisAgent(fetchedComments, details.title);
+          setPersonalityAnalysis(result);
+        } catch (err) {
+          console.error('Personality Agent analysis failed:', err);
+          setError('性格診断分析に失敗しました。');
+        } finally {
+          setAgentWorking(false);
+        }
+      }
     } catch (err) {
       if (err instanceof Error) {
         setError(`エラーが発生しました: ${err.message}`);
@@ -110,10 +130,11 @@ const App: React.FC = () => {
     }
   };
 
-  const runPersonalityAgent = async () => {
+  const runPersonalityAgentOnly = async () => {
     if (!comments.length || !videoDetails) return;
-    
+
     setAgentWorking(true);
+    setError(null);
     try {
       const result = await runPersonalityAnalysisAgent(comments, videoDetails.title);
       setPersonalityAnalysis(result);
@@ -165,12 +186,51 @@ const App: React.FC = () => {
               </div>
             </div>
 
+            {/* 分析タイプ選択 */}
+            <div className="mt-4">
+              <label className="block text-sm font-medium text-slate-300 mb-2">
+                分析タイプ
+              </label>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  onClick={() => setAnalysisType('normal')}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    analysisType === 'normal'
+                      ? 'bg-blue-500 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                  通常分析
+                </button>
+                <button
+                  onClick={() => setAnalysisType('personality')}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    analysisType === 'personality'
+                      ? 'bg-purple-500 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                  性格診断
+                </button>
+                <button
+                  onClick={() => setAnalysisType('both')}
+                  className={`px-4 py-2 rounded-lg font-medium transition ${
+                    analysisType === 'both'
+                      ? 'bg-gradient-to-r from-blue-500 to-purple-500 text-white'
+                      : 'bg-slate-700 text-slate-300 hover:bg-slate-600'
+                  }`}
+                >
+                  両方
+                </button>
+              </div>
+            </div>
+
             <button
               onClick={handleAnalyze}
               disabled={isLoading || !geminiConfigured}
               className="mt-4 flex w-full items-center justify-center rounded-xl bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 px-4 py-3 text-base font-semibold text-white shadow-lg transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {isLoading ? <LoadingSpinner /> : '分析する'}
+              {isLoading ? <LoadingSpinner /> : '分析開始'}
             </button>
           </div>
 
@@ -206,7 +266,7 @@ const App: React.FC = () => {
             </div>
           )}
 
-          {analysisResult && (
+          {(analysisType === 'normal' || analysisType === 'both') && analysisResult && (
             <div className="space-y-10">
               <section className="relative overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-br from-slate-900/90 via-slate-900 to-slate-950 p-8 shadow-2xl">
                 <div className="absolute inset-0 bg-[radial-gradient(circle_at_top,_rgba(99,102,241,0.2),_transparent_55%)]" aria-hidden="true" />
@@ -275,24 +335,28 @@ const App: React.FC = () => {
                 </div>
               </section>
 
+              {/* 3D Opinion Clustering Visualization */}
+              {(analysisType === 'normal' || analysisType === 'both') && (
+                <section className="rounded-2xl border border-cyan-800 bg-gradient-to-br from-cyan-900/20 via-slate-900/70 to-slate-950 p-8 shadow-2xl">
+                  <h3 className="text-2xl font-bold text-white mb-4">意見クラスタリング3D可視化</h3>
+                  <p className="text-sm text-slate-400 mb-6">
+                    コメントを3次元空間に配置し、意見の傾向をクラスタとして可視化します。
+                    同じ色の点は似た意見を持つグループを表しています。
+                  </p>
+                  <OpinionClustering3D comments={comments} />
+                </section>
+              )}
+
               {/* AI Agent 性格診断セクション */}
-              <section className="rounded-2xl border border-purple-800 bg-gradient-to-br from-purple-900/20 via-slate-900/70 to-slate-950 p-8 shadow-2xl">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="flex items-center gap-2 text-2xl font-bold text-white">
-                    🤖 AI エージェント: コメント性格診断
+              {((analysisType === 'personality' || analysisType === 'both') && (personalityAnalysis || agentWorking)) && (
+                <section className="rounded-2xl border border-purple-800 bg-gradient-to-br from-purple-900/20 via-slate-900/70 to-slate-950 p-8 shadow-2xl">
+                  <h3 className="text-2xl font-bold text-white mb-6">
+                    AI エージェント: コメント性格診断
                   </h3>
-                  <button
-                    onClick={runPersonalityAgent}
-                    disabled={agentWorking || !comments.length}
-                    className="px-6 py-2 bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg font-semibold text-white transition-all transform hover:scale-105"
-                  >
-                    {agentWorking ? '🔄 AI分析中...' : '🚀 性格診断開始'}
-                  </button>
-                </div>
 
                 {agentWorking && (
                   <div className="bg-purple-500/10 border border-purple-500/30 rounded-lg p-4 mb-6">
-                    <h4 className="font-bold text-purple-300 mb-3">🧠 エージェントの思考プロセス</h4>
+                    <h4 className="font-bold text-purple-300 mb-3">エージェントの思考プロセス</h4>
                     <div className="space-y-2 text-sm">
                       <div className="flex items-center text-purple-200">
                         <div className="w-2 h-2 bg-purple-400 rounded-full mr-3 animate-pulse"></div>
@@ -314,7 +378,7 @@ const App: React.FC = () => {
                   <div className="space-y-8">
                     {/* 性格タイプ分布 */}
                     <div>
-                      <h4 className="text-xl font-bold text-purple-300 mb-4">📊 性格タイプ分布</h4>
+                      <h4 className="text-xl font-bold text-purple-300 mb-4">性格タイプ分布</h4>
                       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
                         {personalityAnalysis.analysis.personalityDistribution.map((personality, index) => (
                           <div key={index} className="bg-slate-800/60 border border-purple-500/30 rounded-lg p-4">
@@ -351,7 +415,7 @@ const App: React.FC = () => {
 
                     {/* グループダイナミクス */}
                     <div className="bg-slate-800/40 border border-purple-500/20 rounded-lg p-6">
-                      <h4 className="text-xl font-bold text-purple-300 mb-3">🎭 グループダイナミクス</h4>
+                      <h4 className="text-xl font-bold text-purple-300 mb-3">グループダイナミクス</h4>
                       <p className="text-slate-200 leading-relaxed mb-4">
                         {personalityAnalysis.analysis.groupDynamics}
                       </p>
@@ -377,23 +441,111 @@ const App: React.FC = () => {
 
                     {/* 相互作用パターン */}
                     <div className="bg-slate-800/40 border border-purple-500/20 rounded-lg p-6">
-                      <h4 className="text-xl font-bold text-purple-300 mb-3">🔄 相互作用パターン分析</h4>
-                      <div className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
-                        {personalityAnalysis.interactions}
+                      <h4 className="text-xl font-bold text-purple-300 mb-3">相互作用パターン分析</h4>
+                      <div className="text-slate-200 text-sm leading-relaxed space-y-3">
+                        {personalityAnalysis.interactions.split('\n').map((line, idx) => {
+                          // Handle numbered lists and bullet points
+                          if (line.match(/^\d+\.\s+\*\*/)) {
+                            const cleaned = line.replace(/^\d+\.\s+\*\*(.+?)\*\*(.*)$/, '$1$2');
+                            const [title, ...rest] = cleaned.split(':');
+                            return (
+                              <div key={idx} className="mb-2">
+                                <span className="font-semibold text-purple-200">{title}:</span>
+                                <span className="ml-1">{rest.join(':')}</span>
+                              </div>
+                            );
+                          }
+                          if (line.match(/^\d+\.\s+/)) {
+                            const cleaned = line.replace(/^\d+\.\s+/, '');
+                            const boldRemoved = cleaned.replace(/\*\*(.+?)\*\*/g, '$1');
+                            return (
+                              <div key={idx} className="pl-4 mb-1">
+                                <span className="text-purple-400 mr-2">•</span>
+                                {boldRemoved}
+                              </div>
+                            );
+                          }
+                          if (line.match(/^\s*-\s+/)) {
+                            const cleaned = line.replace(/^\s*-\s+/, '');
+                            return (
+                              <div key={idx} className="pl-6">
+                                <span className="text-purple-400 mr-2">◦</span>
+                                {cleaned}
+                              </div>
+                            );
+                          }
+                          // Handle bold text
+                          const parts = line.split(/\*\*(.+?)\*\*/g);
+                          return (
+                            <div key={idx}>
+                              {parts.map((part, partIdx) =>
+                                partIdx % 2 === 1 ? (
+                                  <span key={partIdx} className="font-semibold text-purple-200">{part}</span>
+                                ) : (
+                                  <span key={partIdx}>{part}</span>
+                                )
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 
                     {/* モデレーション戦略 */}
                     <div className="bg-gradient-to-r from-green-900/20 to-blue-900/20 border border-green-500/20 rounded-lg p-6">
-                      <h4 className="text-xl font-bold text-green-300 mb-3">🛡️ 推奨モデレーション戦略</h4>
-                      <div className="text-slate-200 text-sm leading-relaxed whitespace-pre-wrap">
-                        {personalityAnalysis.strategy}
+                      <h4 className="text-xl font-bold text-green-300 mb-3">推奨モデレーション戦略</h4>
+                      <div className="text-slate-200 text-sm leading-relaxed space-y-3">
+                        {personalityAnalysis.strategy.split('\n').map((line, idx) => {
+                          // Handle numbered lists and bullet points
+                          if (line.match(/^\d+\.\s+\*\*/)) {
+                            const cleaned = line.replace(/^\d+\.\s+\*\*(.+?)\*\*(.*)$/, '$1$2');
+                            const [title, ...rest] = cleaned.split(':');
+                            return (
+                              <div key={idx} className="mb-2">
+                                <span className="font-semibold text-green-200">{title}:</span>
+                                <span className="ml-1">{rest.join(':')}</span>
+                              </div>
+                            );
+                          }
+                          if (line.match(/^\d+\.\s+/)) {
+                            const cleaned = line.replace(/^\d+\.\s+/, '');
+                            const boldRemoved = cleaned.replace(/\*\*(.+?)\*\*/g, '$1');
+                            return (
+                              <div key={idx} className="pl-4 mb-1">
+                                <span className="text-green-400 mr-2">•</span>
+                                {boldRemoved}
+                              </div>
+                            );
+                          }
+                          if (line.match(/^\s*-\s+/)) {
+                            const cleaned = line.replace(/^\s*-\s+/, '');
+                            return (
+                              <div key={idx} className="pl-6">
+                                <span className="text-green-400 mr-2">◦</span>
+                                {cleaned}
+                              </div>
+                            );
+                          }
+                          // Handle bold text
+                          const parts = line.split(/\*\*(.+?)\*\*/g);
+                          return (
+                            <div key={idx}>
+                              {parts.map((part, partIdx) =>
+                                partIdx % 2 === 1 ? (
+                                  <span key={partIdx} className="font-semibold text-green-200">{part}</span>
+                                ) : (
+                                  <span key={partIdx}>{part}</span>
+                                )
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
                     </div>
 
                     {/* 推奨事項 */}
                     <div className="bg-slate-800/40 border border-purple-500/20 rounded-lg p-6">
-                      <h4 className="text-xl font-bold text-purple-300 mb-3">💡 建設的な議論のための推奨事項</h4>
+                      <h4 className="text-xl font-bold text-purple-300 mb-3">建設的な議論のための推奨事項</h4>
                       <ul className="space-y-2">
                         {personalityAnalysis.analysis.recommendations.map((rec, index) => (
                           <li key={index} className="flex items-start gap-2 text-slate-200 text-sm">
@@ -405,7 +557,8 @@ const App: React.FC = () => {
                     </div>
                   </div>
                 )}
-              </section>
+                </section>
+              )}
             </div>
           )}
         </main>
