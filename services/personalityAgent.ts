@@ -107,6 +107,24 @@ const executePersonalityTool = async (toolName: string, args: any): Promise<any>
   }
 };
 
+// 汎用リトライ関数
+const retryWithDelay = async <T>(fn: () => Promise<T>, retries = 3, delay = 2000): Promise<T> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      return await fn();
+    } catch (error: any) {
+      if ((error?.error?.code === 503 || error?.status === 503) && i < retries - 1) {
+        console.log(`Retrying in ${delay}ms due to 503 error...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+        delay *= 2;
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw new Error('Max retries reached');
+};
+
 const analyzePersonalityTypes = async (comments: string[], focusType: string): Promise<PersonalityAnalysis> => {
   const schema = {
     type: Type.OBJECT,
@@ -172,14 +190,16 @@ const analyzePersonalityTypes = async (comments: string[], focusType: string): P
   分析の詳細度: ${focusType}
   `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
-    contents: prompt,
-    config: {
-      responseMimeType: "application/json",
-      responseSchema: schema,
-    },
-  });
+  const response = await retryWithDelay(() =>
+    ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: prompt,
+      config: {
+        responseMimeType: "application/json",
+        responseSchema: schema,
+      },
+    })
+  );
 
   const result = JSON.parse(response.text.trim());
   return result as PersonalityAnalysis;
@@ -188,22 +208,24 @@ const analyzePersonalityTypes = async (comments: string[], focusType: string): P
 const predictInteractionPatterns = async (personalityMix: string[], context?: string): Promise<string> => {
   const prompt = `
   以下の性格タイプが混在するコメント欄で、どのような相互作用が起こりやすいか分析してください：
-  
+
   存在する性格タイプ: ${personalityMix.join(', ')}
   議論の文脈: ${context || '一般的な議論'}
-  
+
   分析してください:
   1. 協調的な関係になりやすい組み合わせ
-  2. 対立しやすい組み合わせ  
+  2. 対立しやすい組み合わせ
   3. 議論の発展パターンの予測
   4. 注意すべき火種
   5. 建設的な方向に導く方法
   `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
-    contents: prompt,
-  });
+  const response = await retryWithDelay(() =>
+    ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: prompt,
+    })
+  );
 
   return response.text;
 };
@@ -223,15 +245,45 @@ const generateModerationStrategy = async (dominantTypes: string[], conflictLevel
   5. 危険サインの早期発見方法
   `;
 
-  const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
-    contents: prompt,
-  });
+  const response = await retryWithDelay(() =>
+    ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: prompt,
+    })
+  );
 
   return response.text;
 };
 
 // メインのAgent関数
+// リトライ機能付きAPI呼び出し
+const callGeminiWithRetry = async (ai: any, prompt: string, retries = 3, delay = 2000): Promise<any> => {
+  for (let i = 0; i < retries; i++) {
+    try {
+      console.log(`PersonalityAgent: API call attempt ${i + 1}/${retries}`);
+      const response = await ai.models.generateContent({
+        model: "gemini-2.0-flash",
+        contents: prompt,
+        tools: { function_declarations: personalityTools },
+      });
+      return response;
+    } catch (error: any) {
+      console.log('PersonalityAgent: API error:', error);
+
+      // 503エラー（サーバー混雑）の場合はリトライ
+      if (error?.error?.code === 503 || error?.status === 503) {
+        if (i < retries - 1) {
+          console.log(`PersonalityAgent: 503 error, retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          delay *= 2; // 指数バックオフ
+          continue;
+        }
+      }
+      throw error;
+    }
+  }
+};
+
 export const runPersonalityAnalysisAgent = async (
   comments: string[],
   videoTitle?: string
@@ -270,12 +322,8 @@ export const runPersonalityAnalysisAgent = async (
   - generate_moderation_strategy: モデレーション戦略
   `;
 
-  console.log('PersonalityAgent: Calling Gemini API...');
-  const response = await ai.models.generateContent({
-    model: "gemini-2.0-flash",
-    contents: prompt,
-    tools: { function_declarations: personalityTools },
-  });
+  console.log('PersonalityAgent: Calling Gemini API with retry...');
+  const response = await callGeminiWithRetry(ai, prompt);
 
   console.log('PersonalityAgent: API response received', {
     hasCandidates: !!response.candidates,
